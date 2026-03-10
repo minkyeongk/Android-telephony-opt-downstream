@@ -1047,13 +1047,14 @@ public class SmsController extends ISmsImplBase {
         if (callingPackage == null) {
             callingPackage = getCallingPackage();
         }
+        int callingUid = android.os.Binder.getCallingUid();
 
         enforceTelephonyFeatureWithException(callingPackage,
                 "getSmscAddressFromIccEfForSubscriber");
 
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         if (iccSmsIntMgr != null) {
-            return iccSmsIntMgr.getSmscAddressFromIccEf(callingPackage);
+            return iccSmsIntMgr.getSmscAddressFromIccEf(callingPackage, callingUid);
         } else {
             Rlog.e(LOG_TAG, "getSmscAddressFromIccEfForSubscriber iccSmsIntMgr is null"
                     + " for Subscription: " + subId);
@@ -1067,13 +1068,14 @@ public class SmsController extends ISmsImplBase {
         if (callingPackage == null) {
             callingPackage = getCallingPackage();
         }
+        int callingUid = android.os.Binder.getCallingUid();
 
         enforceTelephonyFeatureWithException(callingPackage,
                 "setSmscAddressOnIccEfForSubscriber");
 
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         if (iccSmsIntMgr != null) {
-            return iccSmsIntMgr.setSmscAddressOnIccEf(callingPackage, smsc);
+            return iccSmsIntMgr.setSmscAddressOnIccEf(callingPackage, callingUid, smsc);
         } else {
             Rlog.e(LOG_TAG, "setSmscAddressOnIccEfForSubscriber iccSmsIntMgr is null"
                     + " for Subscription: " + subId);
@@ -1219,7 +1221,8 @@ public class SmsController extends ISmsImplBase {
         if (iccSmsIntMgr != null) {
             long identity = Binder.clearCallingIdentity();
             try {
-                smscAddr =  iccSmsIntMgr.getSmscAddressFromIccEf(callingPackage);
+                smscAddr = iccSmsIntMgr.getSmscAddressFromIccEf(
+                        mContext.getPackageName(), android.os.Process.myUid());
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }

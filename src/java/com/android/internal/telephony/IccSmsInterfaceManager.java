@@ -911,9 +911,9 @@ public class IccSmsInterfaceManager {
      *
      * @return the SMSC address string, null if failed.
      */
-    public String getSmscAddressFromIccEf(String callingPackage) {
+    public String getSmscAddressFromIccEf(String callingPackage, int uid) {
         if (!mSmsPermissions.checkCallingOrSelfCanGetSmscAddress(
-                callingPackage, "getSmscAddressFromIccEf")) {
+                callingPackage, uid, "getSmscAddressFromIccEf")) {
             loge("Caller do not have permission to call GetSmscAddress");
             return null;
         }
@@ -933,9 +933,9 @@ public class IccSmsInterfaceManager {
      * @param smsc the SMSC address string.
      * @return true for success, false otherwise.
      */
-    public boolean setSmscAddressOnIccEf(String callingPackage, String smsc) {
+    public boolean setSmscAddressOnIccEf(String callingPackage, int uid, String smsc) {
         if (!mSmsPermissions.checkCallingOrSelfCanSetSmscAddress(
-                callingPackage, "setSmscAddressOnIccEf")) {
+                callingPackage, uid, "setSmscAddressOnIccEf")) {
             loge("Caller do not have permission to call SetSmscAddress");
             return false;
         }

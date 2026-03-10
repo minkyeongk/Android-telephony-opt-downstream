@@ -129,16 +129,18 @@ public class SmsPermissions {
      * The default SMS application can get SMSC address, otherwise the caller must have
      * {@link android.Manifest.permission#READ_PRIVILEGED_PHONE_STATE} or carrier privileges.
      *
+     * @param packageName the calling package name
+     * @param uid the calling UID (captured before any identity clearing)
      * @return true if the caller is default SMS app or has the required permission and privileges.
      *              Otherwise, false;
      */
-    public boolean checkCallingOrSelfCanGetSmscAddress(String callingPackage, String message) {
+    public boolean checkCallingOrSelfCanGetSmscAddress(String packageName, int uid,
+            String message) {
         // Allow it to the default SMS app always.
         boolean isDefaultSmsPackage;
-        int callerUid = Binder.getCallingUid();
         final long identity = Binder.clearCallingIdentity();
         try {
-            isDefaultSmsPackage = isCallerDefaultSmsPackage(callingPackage, callerUid);
+            isDefaultSmsPackage = isCallerDefaultSmsPackage(packageName, uid);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -157,16 +159,18 @@ public class SmsPermissions {
      * The default SMS application can set SMSC address, otherwise the caller must have
      * {@link android.Manifest.permission#MODIFY_PHONE_STATE} or carrier privileges.
      *
+     * @param packageName the calling package name
+     * @param uid the calling UID (captured before any identity clearing)
      * @return true if the caller is default SMS app or has the required permission and privileges.
      *              Otherwise, false.
      */
-    public boolean checkCallingOrSelfCanSetSmscAddress(String callingPackage, String message) {
+    public boolean checkCallingOrSelfCanSetSmscAddress(String packageName, int uid,
+            String message) {
         // Allow it to the default SMS app always.
         boolean isDefaultSmsPackage;
-        int callerUid = Binder.getCallingUid();
         final long identity = Binder.clearCallingIdentity();
         try {
-            isDefaultSmsPackage = isCallerDefaultSmsPackage(callingPackage, callerUid);
+            isDefaultSmsPackage = isCallerDefaultSmsPackage(packageName, uid);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -181,10 +185,9 @@ public class SmsPermissions {
 
     /** Check if a package is default SMS app. */
     @VisibleForTesting
-    public boolean isCallerDefaultSmsPackage(String packageName, int callerUid) {
-        if (packageNameMatchesCallingUid(packageName, callerUid)) {
-            UserHandle userHandle = TelephonyUtils.getSubscriptionUserHandle(mContext,
-                    mPhone.getSubId());
+    public boolean isCallerDefaultSmsPackage(String packageName, int uid) {
+        if (packageNameMatchesCallingUid(packageName, uid)) {
+            UserHandle userHandle = UserHandle.getUserHandleForUid(uid);
             return SmsApplication.isDefaultSmsApplicationAsUser(mContext, packageName, userHandle);
         }
         return false;
