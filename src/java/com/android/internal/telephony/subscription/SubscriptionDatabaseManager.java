@@ -96,6 +96,12 @@ public class SubscriptionDatabaseManager extends Handler {
     /** Invalid database row index. */
     private static final int INVALID_ROW_INDEX = -1;
 
+    /**
+     * Database column name for carrier config overrides stored as a JSON string.
+     * Downstream-specific extension; not yet defined in {@link android.provider.Telephony.SimInfo}.
+     */
+    static final String COLUMN_CARRIER_OVERRIDE_JSON = "carrier_override_json";
+
     /** The mapping from {@link SimInfo} table to {@link SubscriptionInfoInternal} get methods. */
     private static final Map<String, Function<SubscriptionInfoInternal, ?>>
             SUBSCRIPTION_GET_METHOD_MAP = Map.ofEntries(
@@ -320,7 +326,10 @@ public class SubscriptionDatabaseManager extends Handler {
                     SubscriptionInfoInternal::getSatellitePlmnsDataServicePolicy),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY,
-                    SubscriptionInfoInternal::getSatellitePlmnsVoiceServicePolicy)
+                    SubscriptionInfoInternal::getSatellitePlmnsVoiceServicePolicy),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    COLUMN_CARRIER_OVERRIDE_JSON,
+                    SubscriptionInfoInternal::getCarrierOverrideJson)
     );
 
     /**
@@ -546,7 +555,10 @@ public class SubscriptionDatabaseManager extends Handler {
                     SubscriptionDatabaseManager::setSatelliteEntitlementPlmnDataServicePolicy),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY,
-                    SubscriptionDatabaseManager::setSatelliteEntitlementPlmnVoiceServicePolicy)
+                    SubscriptionDatabaseManager::setSatelliteEntitlementPlmnVoiceServicePolicy),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    COLUMN_CARRIER_OVERRIDE_JSON,
+                    SubscriptionDatabaseManager::setCarrierOverrideJson)
     );
 
     /**
@@ -595,7 +607,8 @@ public class SubscriptionDatabaseManager extends Handler {
             SimInfo.COLUMN_NR_ADVANCED_CALLING_ENABLED,
             SimInfo.COLUMN_USER_HANDLE,
             SimInfo.COLUMN_SATELLITE_ENABLED,
-            SimInfo.COLUMN_SATELLITE_ATTACH_ENABLED_FOR_CARRIER
+            SimInfo.COLUMN_SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
+            COLUMN_CARRIER_OVERRIDE_JSON
     );
 
     /**
@@ -2350,6 +2363,20 @@ public class SubscriptionDatabaseManager extends Handler {
     }
 
     /**
+     * Set the carrier config overrides for the subscription, stored as a JSON string.
+     *
+     * @param subId The subscription id.
+     * @param carrierOverrideJson JSON string containing carrier config overrides.
+     * @throws IllegalArgumentException if the subscription does not exist.
+     */
+    public void setCarrierOverrideJson(int subId, @NonNull String carrierOverrideJson) {
+        writeDatabaseAndCacheHelper(subId,
+                COLUMN_CARRIER_OVERRIDE_JSON,
+                carrierOverrideJson,
+                SubscriptionInfoInternal.Builder::setCarrierOverrideJson);
+    }
+
+    /**
      * Reload the database from content provider to the cache. This must be a synchronous operation
      * to prevent cache/database out-of-sync. Callers should be cautious to call this method because
      * it might take longer time to complete.
@@ -2614,6 +2641,11 @@ public class SubscriptionDatabaseManager extends Handler {
         }
         builder.setSatelliteESOSSupported(cursor.getInt(
                 cursor.getColumnIndexOrThrow(SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED)));
+        int carrierOverrideJsonColIdx = cursor.getColumnIndex(COLUMN_CARRIER_OVERRIDE_JSON);
+        if (carrierOverrideJsonColIdx >= 0) {
+            builder.setCarrierOverrideJson(TextUtils.emptyIfNull(
+                    cursor.getString(carrierOverrideJsonColIdx)));
+        }
         return builder.build();
     }
 

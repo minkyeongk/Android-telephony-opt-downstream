@@ -80,6 +80,13 @@ public class SubscriptionInfoInternal {
     private final int mId;
 
     /**
+     * JSON-serialised carrier config overrides specific to this subscription, or an empty string
+     * if no overrides have been set.  These are applied on top of the carrier config fetched from
+     * the network and allow per-subscription tuning without requiring a new carrier config push.
+     */
+    @NonNull private final String mCarrierOverrideJson;
+
+    /**
      * The ICCID of the SIM that is associated with this subscription, empty if unknown.
      */
     @NonNull
@@ -540,6 +547,7 @@ public class SubscriptionInfoInternal {
      * @param builder Builder of {@link SubscriptionInfoInternal}.
      */
     private SubscriptionInfoInternal(@NonNull Builder builder) {
+        this.mCarrierOverrideJson = builder.mCarrierOverrideJson;
         this.mId = builder.mId;
         this.mIccId = builder.mIccId;
         this.mSimSlotIndex = builder.mSimSlotIndex;
@@ -638,6 +646,14 @@ public class SubscriptionInfoInternal {
     @NonNull
     public String getIccId() {
         return mIccId;
+    }
+
+    /**
+     * @return JSON-serialised carrier config overrides, or an empty string if none are set.
+     */
+    @NonNull
+    public String getCarrierOverrideJson() {
+        return mCarrierOverrideJson;
     }
 
     /**
@@ -1429,6 +1445,7 @@ public class SubscriptionInfoInternal {
     @Override
     public String toString() {
         return "[SubscriptionInfoInternal: id=" + mId
+                + " mCarrierOverrideJson=" + mCarrierOverrideJson
                 + " iccId=" + SubscriptionInfo.getPrintableId(mIccId)
                 + " simSlotIndex=" + mSimSlotIndex
                 + " portIndex=" + mPortIndex
@@ -1506,6 +1523,7 @@ public class SubscriptionInfoInternal {
      */
     public boolean equalsDbItemsOnly(@NonNull SubscriptionInfoInternal that) {
         return mId == that.mId && mSimSlotIndex == that.mSimSlotIndex
+                && mCarrierOverrideJson.equals(that.mCarrierOverrideJson)
                 && mDisplayNameSource == that.mDisplayNameSource && mIconTint == that.mIconTint
                 && mDataRoaming == that.mDataRoaming && mIsEmbedded == that.mIsEmbedded
                 && mIsRemovableEmbedded == that.mIsRemovableEmbedded
@@ -1581,7 +1599,7 @@ public class SubscriptionInfoInternal {
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(mId, mIccId, mSimSlotIndex, mDisplayName, mCarrierName,
+        int result = Objects.hash(mCarrierOverrideJson, mId, mIccId, mSimSlotIndex, mDisplayName, mCarrierName,
                 mDisplayNameSource, mIconTint, mNumber, mDataRoaming, mMcc, mMnc, mEhplmns, mHplmns,
                 mIsEmbedded, mCardString, mIsRemovableEmbedded, mIsExtremeThreatAlertEnabled,
                 mIsSevereThreatAlertEnabled, mIsAmberAlertEnabled, mIsEmergencyAlertEnabled,
@@ -1614,6 +1632,12 @@ public class SubscriptionInfoInternal {
      * The builder class of {@link SubscriptionInfoInternal}.
      */
     public static class Builder {
+        /**
+         * JSON-serialised carrier config overrides, empty if none set.
+         */
+        @NonNull
+        private String mCarrierOverrideJson = "";
+
         /**
          * The subscription id.
          */
@@ -2068,6 +2092,7 @@ public class SubscriptionInfoInternal {
          * @param info The subscription info.
          */
         public Builder(@NonNull SubscriptionInfoInternal info) {
+            mCarrierOverrideJson = info.mCarrierOverrideJson;
             mId = info.mId;
             mIccId = info.mIccId;
             mSimSlotIndex = info.mSimSlotIndex;
@@ -2157,6 +2182,20 @@ public class SubscriptionInfoInternal {
         @NonNull
         public Builder setId(int id) {
             mId = id;
+            return this;
+        }
+
+        /**
+         * Set the JSON-serialised carrier config overrides for this subscription.
+         *
+         * @param carrierOverrideJson JSON string of override key-value pairs, or empty string to
+         *                            clear overrides.
+         * @return The builder.
+         */
+        @NonNull
+        public Builder setCarrierOverrideJson(@NonNull String carrierOverrideJson) {
+            Objects.requireNonNull(carrierOverrideJson);
+            mCarrierOverrideJson = carrierOverrideJson;
             return this;
         }
 
