@@ -5170,4 +5170,68 @@ public class SubscriptionManagerService extends ISub.Stub {
             Binder.restoreCallingIdentity(token);
         }
     }
+
+    /**
+     * Set carrier config overrides for a subscription as a JSON-encoded PersistableBundle.
+     * Downstream-specific API; upstream uses proto-based setExtCarrierConfigOverrides.
+     *
+     * @param subId The subscription id.
+     * @param overrides The carrier config overrides bundle, or null to clear.
+     * @return true if the overrides were saved successfully.
+     * @throws IllegalArgumentException if overrides has more than 20 entries.
+     */
+    public boolean setCarrierOverrideConfig(int subId,
+            @android.annotation.Nullable android.os.PersistableBundle overrides) {
+        if (overrides != null && overrides.size() > 20) {
+            throw new IllegalArgumentException(
+                    "Carrier override bundle too large: " + overrides.size() + " entries (max 20)");
+        }
+        String json;
+        if (overrides == null || overrides.isEmpty()) {
+            json = "";
+        } else {
+            try {
+                org.json.JSONObject obj = new org.json.JSONObject();
+                for (String key : overrides.keySet()) {
+                    Object val = overrides.get(key);
+                    obj.put(key, val);
+                }
+                json = obj.toString();
+            } catch (org.json.JSONException e) {
+                loge("setCarrierOverrideConfig: failed to serialize overrides: " + e);
+                return false;
+            }
+        }
+        mSubscriptionDatabaseManager.setCarrierOverrideJson(subId, json);
+        return true;
+    }
+
+    /**
+     * Get carrier config overrides for a subscription, stored as a JSON-encoded PersistableBundle.
+     * Downstream-specific API.
+     *
+     * @param subId The subscription id.
+     * @return The carrier config overrides bundle, or null if none are set.
+     */
+    @android.annotation.Nullable
+    public android.os.PersistableBundle getCarrierOverrideConfig(int subId) {
+        SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
+                .getSubscriptionInfoInternal(subId);
+        if (subInfo == null) return null;
+        String json = subInfo.getCarrierOverrideJson();
+        if (json == null || json.isEmpty()) return null;
+        try {
+            org.json.JSONObject obj = new org.json.JSONObject(json);
+            android.os.PersistableBundle bundle = new android.os.PersistableBundle();
+            java.util.Iterator<String> keys = obj.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                bundle.putString(key, obj.optString(key));
+            }
+            return bundle;
+        } catch (org.json.JSONException e) {
+            loge("getCarrierOverrideConfig: failed to deserialize overrides: " + e);
+            return null;
+        }
+    }
 }
