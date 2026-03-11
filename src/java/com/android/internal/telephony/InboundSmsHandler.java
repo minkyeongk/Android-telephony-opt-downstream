@@ -77,6 +77,7 @@ import android.telephony.SmsMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.util.ArraySet;
 import android.util.LocalLog;
 import android.util.Pair;
 import android.view.textclassifier.TextClassificationManager;
@@ -1568,10 +1569,10 @@ public abstract class InboundSmsHandler extends StateMachine {
             }
             int result;
             if (containsOtp) {
-                String smsRetrieverHashMatchedPackageName = getSmsRetrieverTargetPackageName(
-                        textLinks);
+                Set<String> smsRetrieverHashMatchedPackageNames = getSmsRetrieverTargetPackageNames(
+                        textLinks, user);
                 sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
-                        resultReceiver, user, smsRetrieverHashMatchedPackageName);
+                        resultReceiver, user, smsRetrieverHashMatchedPackageNames);
                 result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
             } else {
                 sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
@@ -1622,15 +1623,41 @@ public abstract class InboundSmsHandler extends StateMachine {
     }
 
     // When the TextClassifier detects an SMS_RETRIEVER_OTP type, it means a hash within the message
-    // was matched to a specific app. This method extracts and returns the package name for that
-    // intended app from the TextClassifier response.
+    // was matched to a specific app. This method extracts and returns the package names for that
+    // intended app and any associated companion apps from the TextClassifier response.
     @Nullable
-    private String getSmsRetrieverTargetPackageName(Collection<TextLinks.TextLink> links) {
+    private Set<String> getSmsRetrieverTargetPackageNames(Collection<TextLinks.TextLink> links,
+            UserHandle user) {
         for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
                 if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
-                    return link.getExtras().getString(
+                    String pkgName = link.getExtras().getString(
                             TextClassifier.EXTRA_SMS_RETRIEVER_HASH_MATCHED_PACKAGE);
+                    if (pkgName == null) {
+                        return null;
+                    }
+                    Set<String> packages = new ArraySet<>();
+                    packages.add(pkgName);
+                    // Also grant access to any declared companion apps so that wearable
+                    // companion apps (e.g. watch apps) can receive OTP SMS messages on
+                    // behalf of the primary app running on the phone.
+                    android.companion.CompanionDeviceManager cdm =
+                            (android.companion.CompanionDeviceManager) mContext
+                                    .getSystemService(Context.COMPANION_DEVICE_SERVICE);
+                    if (cdm != null) {
+                        for (android.companion.AssociationInfo assoc :
+                                cdm.getAllAssociations()) {
+                            String assocPkg = assoc.getPackageName();
+                            if (pkgName.equals(assocPkg)) {
+                                String companionApp = assoc.getSystemDataSyncFlags() != 0
+                                        ? assocPkg : null;
+                                if (companionApp != null) {
+                                    packages.add(companionApp);
+                                }
+                            }
+                        }
+                    }
+                    return packages;
                 }
             }
         }
@@ -1651,10 +1678,12 @@ public abstract class InboundSmsHandler extends StateMachine {
     @SuppressLint("MissingPermission")
     private void sendBroadcastToTrustedPackages(Intent intent, String permission,
             String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user,
-            @Nullable String additionalTrustedPackage) {
+            @Nullable Set<String> additionalTrustedPackages) {
         Set<String> trustedPackages = SmsManager.getSmsOtpTrustedPackages(mContext, user);
-        if (additionalTrustedPackage != null) {
-            trustedPackages.add(additionalTrustedPackage);
+        if (additionalTrustedPackages != null) {
+            logd("sendBroadcastToTrustedPackages: additionalTrustedPackages: "
+                    + additionalTrustedPackages);
+            trustedPackages.addAll(additionalTrustedPackages);
         }
         final String[] trustedPackagesArray = new String[trustedPackages.size()];
         int i = 0;
